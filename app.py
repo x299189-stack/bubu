@@ -88,16 +88,23 @@ def carpool_book():
 
 
 # ================= 🔗 LINE Webhook 接收與互動 =================
+# ================= 🔗 LINE Webhook 接收與互動 =================
 @app.route("/callback", methods=['POST'])
 def callback():
-    signature = request.headers.get('X-Line-Signature', '')
-    body = request.get_data(as_string=True)
     try:
-        handler.handle(body, signature)
+        # 嘗試正常處理
+        signature = request.headers.get('X-Line-Signature', '')
+        body = request.get_data(as_string=True)
+        
+        # 如果是 LINE 在做 Verify 測試，或有收到訊息，我們都印出來看看
+        print(f"收到 LINE 請求 body: {body}")
+        
+        if body:
+            handler.handle(body, signature)
     except Exception as e:
-        print(f"Webhook 處理錯誤: {e}")
-        # 就算有錯也回傳 200 OK，讓 LINE 平台覺得成功
-        return 'OK', 200
+        print(f"發生例外但直接忽略: {e}")
+    
+    # 💡 無論如何，強制一定要回傳 200 OK 給 LINE 平台！
     return 'OK', 200
 
 @handler.add(MessageEvent, message=TextMessage)
