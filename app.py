@@ -107,6 +107,7 @@ def handle_message(event):
 
 
 # 4. 預約紀錄與順風車頁面（加強防呆與時區對齊）
+# 4. 預約紀錄與順風車頁面
 @app.route("/carpool/records")
 def carpool_records():
     records = []
@@ -115,11 +116,11 @@ def carpool_records():
         data = response.json()
         
         if isinstance(data, list):
-            # 💡 伺服器在雲端 (UTC)，計算台灣目前時間需減 8 小時來過濾過期紀錄
             now_str = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
             filtered_records = []
             
-            for item in data:
+            # 💡 加上 enumerate(data, start=2) 來精準計算 Google 試算表的真實行號 (Row Index)
+            for index, item in enumerate(data):
                 if not isinstance(item, dict):
                     continue
                 try:
@@ -133,6 +134,7 @@ def carpool_records():
                     standard_time = clean_time[:16]
                     
                     clean_item = {
+                        "row_index": index + 2,  # 👈 把真實行號帶進去！(第1行是標題，資料從第2行開始)
                         "time": standard_time,
                         "name": str(item.get("姓名", "")),
                         "phone": str(item.get("電話", "")),
@@ -141,7 +143,6 @@ def carpool_records():
                         "status": str(item.get("狀態", "待安排"))
                     }
                     
-                    # 確保格式正確才進行比較
                     if len(standard_time) >= 16 and standard_time >= now_str:
                         filtered_records.append(clean_item)
                 except Exception as inner_e:
@@ -154,7 +155,6 @@ def carpool_records():
         records = []
 
     return render_template("records.html", records=records)
-
 # 7. 司機接單 / 更新狀態路由
 @app.route("/carpool/accept", methods=["POST"])
 def carpool_accept():
