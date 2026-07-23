@@ -36,11 +36,10 @@ def carpool_book():
         destination = request.form.get("destination")
         time_str = request.form.get("time")
         
+        # 💡 保持原汁原味，直接將前端時間格式化存入，不額外加減
         if time_str:
             dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            # 💡 把前端傳來的時間補回 8 小時的台灣時區差
-            dt_tw = dt + timedelta(hours=8)
-            time_formatted = dt_tw.strftime("%Y-%m-%d %H:%M")
+            time_formatted = dt.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
 
@@ -107,14 +106,14 @@ def handle_message(event):
 # =============================================================
 
 
-# 4. 預約紀錄與順風車頁面
+# 4. 預約紀錄與順風車頁面（統一在這裡處理顯示與過期篩選）
 @app.route("/carpool/records")
 def carpool_records():
     try:
         response = requests.get(GOOGLE_SCRIPT_URL)
         records = response.json()
         
-        # 💡 伺服器在雲端 (UTC)，計算台灣目前時間需減 8 小時來過濾過期紀錄
+        # 伺服器在雲端 (UTC)，計算台灣目前時間需減 8 小時來過濾過期紀錄
         now_str = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
         filtered_records = []
         
@@ -127,6 +126,16 @@ def carpool_records():
                 clean_time = raw_time
                 
             standard_time = clean_time[:16]
+            
+            # 💡 如果你發現從試算表抓下來的時間在網頁上顯示需要調整，
+            # 可以在這裡透過 dt 加上或減去對應的小時來統一修正顯示畫面！
+            try:
+                dt_obj = datetime.fromisoformat(standard_time)
+                # 假設如果抓下來發現差了 8 小時，直接在這裡統一補回來或調整：
+                # dt_adjusted = dt_obj + timedelta(hours=8) 
+                # standard_time = dt_adjusted.strftime("%Y-%m-%d %H:%M")
+            except:
+                pass
             
             item["time"] = standard_time
             item["name"] = item.get("姓名", "")
@@ -234,9 +243,9 @@ def carpool_driver():
         time_str = request.form.get("time")
         seats = request.form.get("seats")
         
+        # 💡 同樣保持原汁原味，直接將前端時間格式化存入
         if time_str:
             dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            # 💡 統一修正：直接使用前端傳過來的時間
             time_formatted = dt.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
