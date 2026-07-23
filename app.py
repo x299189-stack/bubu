@@ -77,7 +77,7 @@ def carpool_book():
                 f"⏰ 時間：{line_time_str}\n\n"
                 f"請各位志工司機確認是否有人能順路接送！"
             )
-            target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9"
+            target_id = "C70557a44f442c71e59e0ddb586b92c3a"
             line_bot_api.push_message(target_id, TextSendMessage(text=line_message))
         except Exception as e:
             print(f"LINE 推播失敗: {e}")
@@ -88,26 +88,18 @@ def carpool_book():
 
 
 # ================= 🔗 LINE Webhook 接收與互動 =================
-# ================= 🔗 LINE Webhook 接收與互動 =================
 @app.route("/callback", methods=['POST'])
 def callback():
+    signature = request.headers['X-Line-Signature']
+    body = request.get_data(as_string=True)
     try:
-        signature = request.headers.get('X-Line-Signature', '')
-        # 修正這裡，改用標準的 decode 方式
-        body = request.data.decode('utf-8')
-        
-        print(f"收到 LINE 請求 body: {body}")
-        
-        if body:
-            handler.handle(body, signature)
-    except Exception as e:
-        print(f"發生例外但直接忽略: {e}")
-    
-    return 'OK', 200
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+    return 'OK'
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    # 安全取得來源 ID（支援群組或個人）
     if isinstance(event.source.group_id, str):
         source_id = event.source.group_id
     elif isinstance(event.source.room_id, str):
@@ -119,6 +111,7 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=f"目前的聊天室/用戶 ID 是: {source_id}")
     )
+
 # =============================================================
 
 
@@ -203,7 +196,7 @@ def carpool_accept():
             f"💺 可載人數：{seats} 人\n\n"
             f"感謝司機熱心協助！"
         )
-        target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9"
+        target_id = "C70557a44f442c71e59e0ddb586b92c3a"
         line_bot_api.push_message(target_id, TextSendMessage(text=line_message))
     except Exception as e:
         print(f"接單更新失敗: {e}")
@@ -241,7 +234,7 @@ def carpool_join():
             f"👤 登記搭乘者：{passenger_name}\n\n"
             f"請司機與乘客互相聯繫！"
         )
-        target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9"
+        target_id = "C70557a44f442c71e59e0ddb586b92c3a"
         line_bot_api.push_message(target_id, TextSendMessage(text=line_message))
     except Exception as e:
         print(f"登記搭車失敗: {e}")
@@ -299,7 +292,7 @@ def carpool_driver():
                 f"💺 可載人數：{seats} 位\n\n"
                 f"有需要的長輩或居民可以聯繫司機預約！"
             )
-            target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9"
+            target_id = "C70557a44f442c71e59e0ddb586b92c3a"
             line_bot_api.push_message(target_id, TextSendMessage(text=line_message))
         except Exception as e:
             print(f"LINE 推播失敗: {e}")
