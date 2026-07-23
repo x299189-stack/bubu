@@ -69,7 +69,6 @@ def carpool_book():
                 f"⏰ 時間：{time_formatted}\n\n"
                 f"請各位志工司機確認是否有人能順路接送！"
             )
-            # 目前設定為你的個人 User ID 進行測試推播
             target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9"
             line_bot_api.push_message(target_id, TextSendMessage(text=line_message))
         except Exception as e:
@@ -93,7 +92,6 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    # 安全取得來源 ID（支援群組或個人）
     if isinstance(event.source.group_id, str):
         source_id = event.source.group_id
     elif isinstance(event.source.room_id, str):
@@ -108,50 +106,56 @@ def handle_message(event):
 # =============================================================
 
 
-# 4. 預約紀錄與順風車頁面
+# 4. 預約紀錄與順風車頁面（加強防呆與時區對齊）
 @app.route("/carpool/records")
 def carpool_records():
+    records = []
     try:
         response = requests.get(GOOGLE_SCRIPT_URL)
-        records = response.json()
+        data = response.json()
         
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-        filtered_records = []
-        
-        for item in records:
-            raw_time = str(item.get("預約時間", ""))
+        if isinstance(data, list):
+            # 💡 伺服器在雲端 (UTC)，計算台灣目前時間需減 8 小時來過濾過期紀錄
+            now_str = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
+            filtered_records = []
             
-            if "T" in raw_time:
-                clean_time = raw_time.replace("T", " ").split(".")[0].replace("Z", "")
-            else:
-                clean_time = raw_time
-                
-            standard_time = clean_time[:16]
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                try:
+                    raw_time = str(item.get("預約時間", ""))
+                    
+                    if "T" in raw_time:
+                        clean_time = raw_time.replace("T", " ").split(".")[0].replace("Z", "")
+                    else:
+                        clean_time = raw_time
+                        
+                    standard_time = clean_time[:16]
+                    
+                    clean_item = {
+                        "time": standard_time,
+                        "name": str(item.get("姓名", "")),
+                        "phone": str(item.get("電話", "")),
+                        "start": str(item.get("上車地點", "")),
+                        "destination": str(item.get("下車地點", "")),
+                        "status": str(item.get("狀態", "待安排"))
+                    }
+                    
+                    # 確保格式正確才進行比較
+                    if len(standard_time) >= 16 and standard_time >= now_str:
+                        filtered_records.append(clean_item)
+                except Exception as inner_e:
+                    print(f"單筆資料解析錯誤跳過: {inner_e}")
+                    
+            records = sorted(filtered_records, key=lambda x: x.get("time", ""))
             
-            # 💡 確保每一欄的中文都正確對應到前端變數！
-            item["time"] = standard_time
-            item["name"] = item.get("姓名", "")
-            item["phone"] = item.get("電話", "")
-            item["start"] = item.get("上車地點", "")         # 確保抓到上車地點
-            item["destination"] = item.get("下車地點", "") # 確保抓到下車地點
-            item["status"] = item.get("狀態", "待安排")
-            
-            # 保留 Google 試算表的真實行號供接單更新使用
-            # (如果 GAS 回傳的 row_index 存在就用它)
-            
-            if standard_time >= now_str:
-                filtered_records.append(item)
-                
-        records = sorted(filtered_records, key=lambda x: x.get("time", ""))
-        
     except Exception as e:
         print(f"讀取試算表失敗: {e}")
         records = []
 
     return render_template("records.html", records=records)
-####################################################################
+
 # 7. 司機接單 / 更新狀態路由
-# 7-1. 司機接單路由（原有）
 @app.route("/carpool/accept", methods=["POST"])
 def carpool_accept():
     name = request.form.get("name")
@@ -191,7 +195,7 @@ def carpool_accept():
     return f"成功為 {name} 的行程接單！<br><br><a href='/carpool/records'>回預約紀錄列表</a>"
 
 
-# 7-2. 🆕 乘客登記搭乘順風車路由
+# 7-2. 乘客登記搭乘順風車路由
 @app.route("/carpool/join", methods=["POST"])
 def carpool_join():
     driver_trip_name = request.form.get("name")
@@ -199,7 +203,6 @@ def carpool_join():
     row_index = request.form.get("row_index")
     passenger_name = request.form.get("passenger_name", "熱心居民")
     
-    # 組合新狀態文字
     status_text = f"已登記搭乘 (乘客: {passenger_name})"
     
     payload = {
@@ -209,7 +212,7 @@ def carpool_join():
         "name": driver_trip_name,
         "time": time_str,
         "status": status_text,
-        "is_join": True,  # 👈 加上這個標記讓 GAS 知道要累加
+        "is_join": True,
         "passenger_name": passenger_name
     }
     
@@ -228,9 +231,7 @@ def carpool_join():
         print(f"登記搭車失敗: {e}")
         
     return f"成功登記搭乘！已通知司機。<br><br><a href='/carpool/records'>回預約紀錄列表</a>"
-###################################################################
-# 5. 司機開放共乘頁面
-# 5. 司機開放共乘頁面
+
 # 5. 司機開放共乘頁面
 @app.route("/carpool/driver", methods=["GET", "POST"])
 def carpool_driver():
@@ -251,13 +252,10 @@ def carpool_driver():
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # ==========================================
-        # 💡 關鍵修改區：寫回 Bookings，並加上【司機】標籤
-        # ==========================================
         payload = {
-            "sheet_name": "Bookings",  # 👈 寫回 Bookings，讓清單統一抓取！
+            "sheet_name": "Bookings",
             "timestamp": timestamp,
-            "name": f"【司機】{driver_name}", # 👈 加上標籤，清單上一目了然
+            "name": f"【司機】{driver_name}",
             "phone": driver_phone,
             "start": start,
             "destination": destination,
@@ -265,10 +263,8 @@ def carpool_driver():
             "status": f"可載人數:{seats}"
         }
         
-        # 1. 寫入 Google 試算表
         requests.post(GOOGLE_SCRIPT_URL, json=payload)
         
-        # 2. 🚀 自動推播通知到 LINE
         try:
             line_message = (
                 f"🚙 【司機發布順風車通知】\n"
@@ -280,7 +276,7 @@ def carpool_driver():
                 f"💺 可載人數：{seats} 位\n\n"
                 f"有需要的長輩或居民可以聯繫司機預約！"
             )
-            target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9" # 你的測試 ID
+            target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9"
             line_bot_api.push_message(target_id, TextSendMessage(text=line_message))
         except Exception as e:
             print(f"LINE 推播失敗: {e}")
@@ -288,12 +284,10 @@ def carpool_driver():
         return f"感謝 {driver_name} 司機！您的順風車行程已成功發布並推播通知。<br><br><a href='/carpool'>回共乘選單</a>"
     
     return render_template("driver_booking.html")
+
 # 6. GPS 即時現況頁面
-# 記憶體字典，用來暫存目前在線司機的即時位置
-# 記憶體字典，用來暫存目前在線司機的即時位置
 live_drivers_locations = {}
 
-# 1. 接收司機手機回報 GPS 位置的路由
 @app.route("/carpool/update_location", methods=["POST"])
 def update_location():
     data = request.json
@@ -312,22 +306,18 @@ def update_location():
         return jsonify({"status": "success"})
     return jsonify({"status": "fail"}), 400
 
-# 2. 提供給前端地圖抓取所有司機位置的 API
 @app.route("/carpool/api/locations")
 def api_locations():
     return jsonify(live_drivers_locations)
 
-# 3. 司機回報定位頁面
 @app.route("/carpool/driver_gps")
 def driver_gps():
     return render_template("driver_gps.html")
 
-# 4. 即時地圖看板頁面
 @app.route("/carpool/live_map")
 def live_map():
     return render_template("live_map.html")
 
-# 5. 共乘現況選擇頁面（連接選單按鈕）
 @app.route("/carpool/gps")
 def carpool_gps():
     return render_template("carpool_gps.html")
