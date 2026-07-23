@@ -92,11 +92,10 @@ def carpool_book():
 @app.route("/callback", methods=['POST'])
 def callback():
     try:
-        # 嘗試正常處理
         signature = request.headers.get('X-Line-Signature', '')
-        body = request.get_data(as_string=True)
+        # 修正這裡，改用標準的 decode 方式
+        body = request.data.decode('utf-8')
         
-        # 如果是 LINE 在做 Verify 測試，或有收到訊息，我們都印出來看看
         print(f"收到 LINE 請求 body: {body}")
         
         if body:
@@ -104,7 +103,6 @@ def callback():
     except Exception as e:
         print(f"發生例外但直接忽略: {e}")
     
-    # 💡 無論如何，強制一定要回傳 200 OK 給 LINE 平台！
     return 'OK', 200
 
 @handler.add(MessageEvent, message=TextMessage)
