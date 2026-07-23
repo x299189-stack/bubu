@@ -37,11 +37,10 @@ def carpool_book():
         time_str = request.form.get("time")
         
         if time_str:
-            try:
-                dt = datetime.fromisoformat(time_str.replace("Z", ""))
-                time_formatted = dt.strftime("%Y-%m-%d %H:%M")
-            except:
-                time_formatted = time_str
+            dt = datetime.fromisoformat(time_str.replace("Z", ""))
+            # 💡 把前端傳來的時間補回 8 小時的台灣時區差
+            dt_tw = dt + timedelta(hours=8)
+            time_formatted = dt_tw.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
 
@@ -57,8 +56,10 @@ def carpool_book():
             "status": "待安排"
         }
         
+        # 1. 寫入 Google 試算表
         requests.post(GOOGLE_SCRIPT_URL, json=payload)
         
+        # 2. 🚀 自動推播通知到 LINE
         try:
             line_message = (
                 f"📢 【新共乘預約通知】\n"
@@ -106,13 +107,14 @@ def handle_message(event):
 # =============================================================
 
 
-# 4. 預約紀錄與順風車頁面（加強防呆）
+# 4. 預約紀錄與順風車頁面
 @app.route("/carpool/records")
 def carpool_records():
     try:
         response = requests.get(GOOGLE_SCRIPT_URL)
         records = response.json()
         
+        # 💡 伺服器在雲端 (UTC)，計算台灣目前時間需減 8 小時來過濾過期紀錄
         now_str = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
         filtered_records = []
         
@@ -133,7 +135,6 @@ def carpool_records():
             item["destination"] = item.get("下車地點", "")
             item["status"] = item.get("狀態", "待安排")
             
-            # 安全過濾，如果時間格式怪異就不會噴錯崩潰
             if standard_time >= now_str:
                 filtered_records.append(item)
                 
@@ -234,11 +235,9 @@ def carpool_driver():
         seats = request.form.get("seats")
         
         if time_str:
-            try:
-                dt = datetime.fromisoformat(time_str.replace("Z", ""))
-                time_formatted = dt.strftime("%Y-%m-%d %H:%M")
-            except:
-                time_formatted = time_str
+            dt = datetime.fromisoformat(time_str.replace("Z", ""))
+            # 💡 統一修正：直接使用前端傳過來的時間
+            time_formatted = dt.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
 
@@ -273,7 +272,7 @@ def carpool_driver():
         except Exception as e:
             print(f"LINE 推播失敗: {e}")
 
-        return f"感謝 {driver_name} 司機！您的順風車行程已成功發布並推播通知。<br><br><a href='/carpool'>回共存選單</a>"
+        return f"感謝 {driver_name} 司機！您的順風車行程已成功發布並推播通知。<br><br><a href='/carpool'>回共乘選單</a>"
     
     return render_template("driver_booking.html")
 
