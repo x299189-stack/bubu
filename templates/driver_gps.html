@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>司機即時定位回報</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5" style="max-width: 500px;">
+        <div class="card shadow">
+            <div class="card-body">
+                <h3 class="text-center text-success fw-bold mb-4">📍 司機即時定位回報</h3>
+                <div class="mb-3">
+                    <label class="form-label">司機姓名</label>
+                    <input type="text" id="driver_name" class="form-control" placeholder="例如：王老吉" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">車牌號碼</label>
+                    <input type="text" id="car_plate" class="form-control" placeholder="例如：ABC-1234" required>
+                </div>
+                <button id="toggleBtn" class="btn btn-success w-100 btn-lg" onclick="toggleTracking()">🚀 開始回報位置</button>
+                <hr>
+                <div id="status" class="text-muted text-center fw-bold">尚未開始回報</div>
+            </div>
+        </div>
+        <div class="text-center mt-3">
+            <a href="/carpool" class="btn btn-secondary">回共乘選單</a>
+        </div>
+    </div>
+
+    <script>
+        let watchId = null;
+        let isTracking = false;
+
+        function toggleTracking() {
+            const driverName = document.getElementById('driver_name').value;
+            const carPlate = document.getElementById('car_plate').value;
+            const statusDiv = document.getElementById('status');
+            const btn = document.getElementById('toggleBtn');
+
+            if (!driverName || !carPlate) {
+                alert('請先填寫司機姓名與車牌！');
+                return;
+            }
+
+            if (!isTracking) {
+                if (navigator.geolocation) {
+                    isTracking = true;
+                    btn.innerText = "🛑 停止回報";
+                    btn.classList.replace('btn-success', 'btn-danger');
+                    statusDiv.innerText = "正在取得並回報 GPS 位置中...";
+
+                    watchId = navigator.geolocation.watchPosition(position => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        statusDiv.innerText = `回報中... 緯度: ${lat.toFixed(4)}, 經度: ${lng.toFixed(4)}`;
+
+                        fetch('/carpool/update_location', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                driver_name: driverName,
+                                car_plate: carPlate,
+                                lat: lat,
+                                lng: lng
+                            })
+                        }).catch(err => console.error(err));
+
+                    }, error => {
+                        statusDiv.innerText = "無法取得 GPS 位置：" + error.message;
+                    }, { enableHighAccuracy: true });
+
+                } else {
+                    alert('您的瀏覽器不支援地理定位功能');
+                }
+            } else {
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                isTracking = false;
+                btn.innerText = "🚀 開始回報位置";
+                btn.classList.replace('btn-danger', 'btn-success');
+                statusDiv.innerText = "已停止回報";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即時車隊調度地圖</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 75vh; width: 100%; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-4">
+        <h2 class="text-center mb-3 text-success fw-bold">🗺️ 車隊即時動態追蹤看板</h2>
+        <div class="card shadow mb-3">
+            <div class="card-body">
+                <div id="map"></div>
+            </div>
+        </div>
+        <div class="text-center">
+            <a href="/carpool" class="btn btn-secondary">回共乘選單</a>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([24.9537, 121.2257], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let markers = {};
+
+        function fetchLocations() {
+            fetch('/carpool/api/locations')
+                .then(res => res.json())
+                .then(data => {
+                    for (let driver in data) {
+                        let info = data[driver];
+                        let latLng = [info.lat, info.lng];
+                        let popupText = `<b>🚗 司機：${driver}</b><br>🚙 車牌：${info.car_plate}<br>⏰ 最後回報：${info.time}`;
+
+                        if (markers[driver]) {
+                            markers[driver].setLatLng(latLng);
+                            markers[driver].getPopup().setContent(popupText);
+                        } else {
+                            let marker = L.marker(latLng).addTo(map)
+                                .bindPopup(popupText);
+                            markers[driver] = marker;
+                        }
+                    }
+                })
+                .catch(err => console.error('抓取位置失敗:', err));
+        }
+
+        setInterval(fetchLocations, 3000);
+        fetchLocations();
+    </script>
+</body>
+</html>

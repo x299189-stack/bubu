@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>預約紀錄與順風車</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h2 class="text-center mb-4 text-success fw-bold">📋 目前共乘預約與順風車列表</h2>
+        
+        <div class="card shadow mb-4">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-success">
+                            <tr>
+                                <th>預約時間</th>
+                                <th>發布人 / 乘車人</th>
+                                <th>上車地點</th>
+                                <th>下車地點</th>
+                                <th>狀態</th>
+                                <th>動作 / 互動</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in records %}
+                            <tr>
+                                <td class="fw-bold text-primary">{{ item.time }}</td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.start }}</td>
+                                <td>{{ item.destination }}</td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">{{ item.status }}</span>
+                                </td>
+                                <td>
+                                    <!-- 智慧判斷：如果是司機發布的行程，顯示「我要搭車」；否則顯示「司機接單」 -->
+                                    {% if "【司機】" in item.name %}
+                                        <!-- 🙋‍♂️ 乘客登記搭乘表單 -->
+                                        <form action="/carpool/join" method="POST" class="row g-1 align-items-center">
+                                            <input type="hidden" name="name" value="{{ item.name }}">
+                                            <input type="hidden" name="time" value="{{ item.time }}">
+                                            <input type="hidden" name="row_index" value="{{ item.row_index }}">
+                                            <div class="col-auto">
+                                                <input type="text" name="passenger_name" placeholder="您的姓名" class="form-control form-control-sm" style="width: 100px;" required>
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="submit" class="btn btn-primary btn-sm">🙋‍♂️ 我要搭車</button>
+                                            </div>
+                                        </form>
+                                    {% else %}
+                                        <!-- 🚗 原本的司機接單表單 -->
+                                        <form action="/carpool/accept" method="POST" class="row g-1 align-items-center">
+                                            <input type="hidden" name="name" value="{{ item.name }}">
+                                            <input type="hidden" name="time" value="{{ item.time }}">
+                                            <input type="hidden" name="row_index" value="{{ item.row_index }}">
+                                            <div class="col-auto">
+                                                <input type="text" name="driver_name" placeholder="司機姓名" class="form-control form-control-sm" style="width: 85px;" required>
+                                            </div>
+                                            <div class="col-auto">
+                                                <input type="text" name="car_plate" placeholder="車牌" class="form-control form-control-sm" style="width: 95px;" required>
+                                            </div>
+                                            <div class="col-auto">
+                                                <input type="number" name="seats" placeholder="人數" class="form-control form-control-sm" style="width: 55px;" value="3" min="1" required>
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="submit" class="btn btn-success btn-sm">🚗 接單</button>
+                                            </div>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center">
+            <a href="/carpool" class="btn btn-secondary">回共乘選單</a>
+        </div>
+    </div>
+</body>
+</html>
