@@ -36,10 +36,12 @@ def carpool_book():
         destination = request.form.get("destination")
         time_str = request.form.get("time")
         
-        # 💡 保持原汁原味，直接將前端時間格式化存入，不額外加減
         if time_str:
-            dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            time_formatted = dt.strftime("%Y-%m-%d %H:%M")
+            try:
+                dt = datetime.fromisoformat(time_str.replace("Z", ""))
+                time_formatted = dt.strftime("%Y-%m-%d %H:%M")
+            except:
+                time_formatted = time_str
         else:
             time_formatted = time_str
 
@@ -55,10 +57,8 @@ def carpool_book():
             "status": "待安排"
         }
         
-        # 1. 寫入 Google 試算表
         requests.post(GOOGLE_SCRIPT_URL, json=payload)
         
-        # 2. 🚀 自動推播通知到 LINE
         try:
             line_message = (
                 f"📢 【新共乘預約通知】\n"
@@ -106,14 +106,13 @@ def handle_message(event):
 # =============================================================
 
 
-# 4. 預約紀錄與順風車頁面（統一在這裡處理顯示與過期篩選）
+# 4. 預約紀錄與順風車頁面（加強防呆）
 @app.route("/carpool/records")
 def carpool_records():
     try:
         response = requests.get(GOOGLE_SCRIPT_URL)
         records = response.json()
         
-        # 伺服器在雲端 (UTC)，計算台灣目前時間需減 8 小時來過濾過期紀錄
         now_str = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
         filtered_records = []
         
@@ -127,16 +126,6 @@ def carpool_records():
                 
             standard_time = clean_time[:16]
             
-            # 💡 如果你發現從試算表抓下來的時間在網頁上顯示需要調整，
-            # 可以在這裡透過 dt 加上或減去對應的小時來統一修正顯示畫面！
-            try:
-                dt_obj = datetime.fromisoformat(standard_time)
-                # 假設如果抓下來發現差了 8 小時，直接在這裡統一補回來或調整：
-                # dt_adjusted = dt_obj + timedelta(hours=8) 
-                # standard_time = dt_adjusted.strftime("%Y-%m-%d %H:%M")
-            except:
-                pass
-            
             item["time"] = standard_time
             item["name"] = item.get("姓名", "")
             item["phone"] = item.get("電話", "")
@@ -144,6 +133,7 @@ def carpool_records():
             item["destination"] = item.get("下車地點", "")
             item["status"] = item.get("狀態", "待安排")
             
+            # 安全過濾，如果時間格式怪異就不會噴錯崩潰
             if standard_time >= now_str:
                 filtered_records.append(item)
                 
@@ -243,10 +233,12 @@ def carpool_driver():
         time_str = request.form.get("time")
         seats = request.form.get("seats")
         
-        # 💡 同樣保持原汁原味，直接將前端時間格式化存入
         if time_str:
-            dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            time_formatted = dt.strftime("%Y-%m-%d %H:%M")
+            try:
+                dt = datetime.fromisoformat(time_str.replace("Z", ""))
+                time_formatted = dt.strftime("%Y-%m-%d %H:%M")
+            except:
+                time_formatted = time_str
         else:
             time_formatted = time_str
 
@@ -281,7 +273,7 @@ def carpool_driver():
         except Exception as e:
             print(f"LINE 推播失敗: {e}")
 
-        return f"感謝 {driver_name} 司機！您的順風車行程已成功發布並推播通知。<br><br><a href='/carpool'>回共乘選單</a>"
+        return f"感謝 {driver_name} 司機！您的順風車行程已成功發布並推播通知。<br><br><a href='/carpool'>回共存選單</a>"
     
     return render_template("driver_booking.html")
 
