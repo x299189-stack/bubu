@@ -38,7 +38,7 @@ def carpool_book():
         
         if time_str:
             dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            dt_tw = dt - timedelta(hours=8)
+            dt_tw = dt + timedelta(hours=8)
             time_formatted = dt_tw.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
@@ -115,7 +115,7 @@ def carpool_records():
         response = requests.get(GOOGLE_SCRIPT_URL)
         records = response.json()
         
-        now_str = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
         filtered_records = []
         
         for item in records:
