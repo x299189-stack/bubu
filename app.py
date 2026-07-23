@@ -115,7 +115,7 @@ def carpool_records():
         response = requests.get(GOOGLE_SCRIPT_URL)
         records = response.json()
         
-        now_str = (datetime.now() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
+        now_str = (datetime.now() - timedelta(hours=8)).strftime("%Y-%m-%d %H:%M")
         filtered_records = []
         
         for item in records:
