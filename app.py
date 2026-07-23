@@ -38,8 +38,9 @@ def carpool_book():
         
         if time_str:
             dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            # 💡 統一修正：前端傳過來已是正確當地時間，直接格式化即可
-            time_formatted = dt.strftime("%Y-%m-%d %H:%M")
+            # 💡 把前端傳來的時間補回 8 小時的台灣時區差
+            dt_tw = dt + timedelta(hours=8)
+            time_formatted = dt_tw.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
 
