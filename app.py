@@ -38,7 +38,7 @@ def carpool_book():
         
         if time_str:
             dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            dt_tw = dt + timedelta(hours=8)
+            dt_tw = dt 
             time_formatted = dt_tw.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
