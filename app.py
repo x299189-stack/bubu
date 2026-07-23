@@ -38,7 +38,8 @@ def carpool_book():
         
         if time_str:
             dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            dt_tw = dt
+            dt_tw = dt + timedelta(hours=8)
+            
             time_formatted = dt_tw.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
@@ -57,6 +58,13 @@ def carpool_book():
         
         # 1. 寫入 Google 試算表
         requests.post(GOOGLE_SCRIPT_URL, json=payload)
+
+        try:
+            # 💡 獨立將 time_formatted 減 8 小時供 LINE 顯示使用
+            dt_line = datetime.strptime(time_formatted, "%Y-%m-%d %H:%M") - timedelta(hours=8)
+            line_time_str = dt_line.strftime("%Y-%m-%d %H:%M")
+        except:
+            line_time_str = time_formatted
         
         # 2. 🚀 自動推播通知到 LINE
         try:
@@ -66,7 +74,7 @@ def carpool_book():
                 f"📞 電話：{phone}\n"
                 f"📍 起點：{start}\n"
                 f"🏁 目的地：{destination}\n"
-                f"⏰ 時間：{time_formatted}\n\n"
+                f"⏰ 時間：{line_time_str}\n\n"
                 f"請各位志工司機確認是否有人能順路接送！"
             )
             target_id = "U0e2e5d60b807d9085e7c287c2d69d8c9"
@@ -245,7 +253,7 @@ def carpool_driver():
         
         if time_str:
             dt = datetime.fromisoformat(time_str.replace("Z", ""))
-            dt_tw = dt
+            dt_tw = dt + timedelta(hours=8)
             time_formatted = dt_tw.strftime("%Y-%m-%d %H:%M")
         else:
             time_formatted = time_str
@@ -264,6 +272,13 @@ def carpool_driver():
         }
         
         requests.post(GOOGLE_SCRIPT_URL, json=payload)
+
+        try:
+            dt_line = datetime.strptime(time_formatted, "%Y-%m-%d %H:%M") - timedelta(hours=8)
+            line_time_str = dt_line.strftime("%Y-%m-%d %H:%M")
+        except:
+            line_time_str = time_formatted
+
         
         try:
             line_message = (
@@ -272,7 +287,7 @@ def carpool_driver():
                 f"📞 電話：{driver_phone}\n"
                 f"📍 起點：{start}\n"
                 f"🏁 目的地：{destination}\n"
-                f"⏰ 時間：{time_formatted}\n"
+                f"⏰ 時間：{line_time_str}\n"
                 f"💺 可載人數：{seats} 位\n\n"
                 f"有需要的長輩或居民可以聯繫司機預約！"
             )
