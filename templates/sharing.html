@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>社區以物易物與物資共享</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>🍎 社區以物易物與物資共享</h2>
+            <div>
+                <button class="btn btn-warning text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addItemModal">➕ 我要提供物資</button>
+                <a href="/" class="btn btn-secondary ms-2">回首頁</a>
+            </div>
+        </div>
+
+        <!-- 提示當前用戶身分 -->
+        <div class="alert alert-info py-2">
+            目前登入的 LINE 身份代號：<strong>{{ user_id }}</strong>
+        </div>
+
+        <!-- 物資列表表格 -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <table class="table table-hover align-middle">
+                    <thead class="table-warning">
+                        <tr>
+                            <th>提供者</th>
+                            <th>提供的物品</th>
+                            <th>想換取的物品</th>
+                            <th>狀態 / 操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.provider_name }}</td>
+                                <td><strong>{{ item.item_name }}</strong></td>
+                                <td><span class="badge bg-success">{{ item.want_item }}</span></td>
+                                <td>
+                                    {% if item.status == "已完成交換" %}
+                                        <span class="badge bg-secondary">已完成交換</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">架上交換中</span>
+                                    {% endif %}
+
+                                    <!-- 互動按鈕區 -->
+                                    <div class="mt-2">
+                                        {% if item.status == "已完成交換" %}
+                                            <!-- 如果已經交換完成，直接顯示交易結束，不給點擊互動 -->
+                                            <span class="text-muted small">此物資交易已結束</span>
+                                        {% elif item.user_id == user_id %}
+                                            <!-- 如果是本人上架的且在架上：可以按交換完成 -->
+                                            <form action="/sharing/update_status" method="POST" class="d-inline">
+                                                <input type="hidden" name="row_index" value="{{ item.row_index }}">
+                                                <input type="hidden" name="user_id" value="{{ user_id }}">
+                                                <input type="hidden" name="new_status" value="已完成交換">
+                                                <button type="submit" class="btn btn-outline-success btn-sm">✨ 標記為交換完成</button>
+                                            </form>
+                                        {% else %}
+                                            <!-- 如果是別人的物資且在架上：點擊後彈窗顯示該筆資料的聯絡方式 -->
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="alert('🎉 太棒了！請透過以下聯絡方式與 【{{ item.provider_name }}】 聯繫交換：\n\n聯絡資訊：{{ item.contact }}')">🤝 我想交換</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">目前沒有人提供物資，趕快來當第一位分享者吧！</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提供物資的彈出視窗 (Modal) -->
+    <div class="modal fade" id="addItemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="/sharing/add" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">📦 上架交換物資</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- 偷偷把 user_id 夾帶在隱藏欄位一起送給後端 -->
+                        <input type="hidden" name="user_id" value="{{ user_id }}">
+
+                        <div class="mb-3">
+                            <label class="form-label">您的暱稱 / 姓名</label>
+                            <input type="text" class="form-control" name="provider_name" placeholder="例如：王大明" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">您想提供的物品</label>
+                            <input type="text" class="form-control" name="item_name" placeholder="例如：自家種的高麗菜 2顆" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">您想換取的物品</label>
+                            <input type="text" class="form-control" name="want_item" placeholder="例如：雞蛋一盒 (若直接送出請填「無」)" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">聯絡方式 (電話或LINE ID)</label>
+                            <input type="text" class="form-control" name="contact" placeholder="例如：0912-345678" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-warning text-dark fw-bold">確認上架</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

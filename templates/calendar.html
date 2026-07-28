@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>社區共用行事曆</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>📅 社區共用行事曆</h2>
+            <div>
+                <!-- 管理員新增按鈕，點擊觸發 Bootstrap Modal -->
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addEventModal">➕ 新增活動</button>
+                <a href="/" class="btn btn-secondary ms-2">回首頁</a>
+            </div>
+        </div>
+
+        <!-- 活動列表表格 -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <table class="table table-hover">
+                    <thead class="table-success">
+                        <tr>
+                            <th>活動時間</th>
+                            <th>活動名稱</th>
+                            <th>地點</th>
+                            <th>說明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 這裡會由後端傳入資料渲染，若暫無資料則顯示提示 -->
+                        {% if events %}
+                            {% for event in events %}
+                            <tr>
+                                <td>{{ event.time }}</td>
+                                <td><strong>{{ event.title }}</strong></td>
+                                <td>{{ event.location }}</td>
+                                <td>{{ event.description }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">目前沒有安排活動</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增活動的密碼保護彈出視窗 (Modal) -->
+    <div class="modal fade" id="addEventModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form action="/calendar/add" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title">🔐 管理員新增活動</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">活動時間</label>
+                            <input type="datetime-local" class="form-control" name="time" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">活動名稱</label>
+                            <input type="text" class="form-control" name="title" placeholder="例如：老人共餐、健康檢測" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">活動地點</label>
+                            <input type="text" class="form-control" name="location" placeholder="例如：社區活動中心">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">活動說明</label>
+                            <textarea class="form-control" name="description" rows="2"></textarea>
+                        </div>
+                        <hr>
+                        <div class="mb-3">
+                            <label class="form-label text-danger">🔑 管理員密碼</label>
+                            <input type="password" class="form-control" name="admin_password" placeholder="請輸入發布密碼" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-success">確認發布</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS 確保 Modal 可以正常彈出 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

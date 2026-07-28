@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, abort, jsonify
+from flask import Flask, render_template, request, abort, jsonify, redirect
 import requests
 from datetime import datetime, timedelta
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -338,6 +339,202 @@ def live_map():
 def carpool_gps():
     return render_template("carpool_gps.html")
 
+# 8-1. 顯示行事曆頁面與讀取活動
+# 8-1. 顯示行事曆頁面與讀取活動 (已加入時間格式化與排序)
+@app.route("/calendar")
+def community_calendar():
+    events = []
+    try:
+        # 記得帶入參數讀取 calender 分頁
+        response = requests.get(GOOGLE_SCRIPT_URL + "?sheet=calender")
+        data = response.json()
+        
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict) and item.get("type") == "event":
+                    time_str = str(item.get("time", ""))
+                    
+                    # --- 1. 把醜醜的時間字串變漂亮 ---
+                    dt = None
+                    display_time = time_str
+                    try:
+                        # 處理 '2027-12-14T17:00:00.000Z' 這種格式
+                        if "T" in time_str:
+                            # 拔掉小數點 .000Z 並把 T 換成空白
+                            clean_time = time_str.split(".")[0].replace("T", " ")
+                            if clean_time.count(":") == 2:
+                                dt = datetime.strptime(clean_time, "%Y-%m-%d %H:%M:%S")
+                            else:
+                                dt = datetime.strptime(clean_time, "%Y-%m-%d %H:%M")
+                            # 轉換成乾淨的顯示格式
+                            dt = dt + timedelta(hours=8)
+                            display_time = dt.strftime("%Y-%m-%d %H:%M")
+                    except Exception:
+                        # 如果出錯，就單純取代 T 讓它稍微好看一點
+                        display_time = time_str.replace("T", " ").split(".")[0]
+                    
+                    events.append({
+                        "time": display_time,
+                        "title": item.get("title", ""),
+                        "location": item.get("location", ""),
+                        "description": item.get("description", ""),
+                        "_dt": dt # 這個隱藏欄位用來給 Python 排序用
+                    })
+    except Exception as e:
+        print(f"讀取行事曆失敗: {e}")
+
+    # --- 2. 進行排序：未來的放上面，過去的沉底 ---
+    now = datetime.now()
+    future_events = []
+    past_events = []
+    
+    for e in events:
+        if e["_dt"]:
+            # 判斷活動是否還沒過期
+            if e["_dt"] >= now:
+                future_events.append(e)
+            else:
+                # 活動時間小於現在，代表過期了
+                # 幫過期的活動標題加上 [已結束] 提示
+                e["title"] = "[已結束] " + e["title"]
+                past_events.append(e)
+        else:
+            # 無法解析時間的預設放上面
+            future_events.append(e)
+            
+    # 未來活動：由近到遠排序 (時間越近的越在上面)
+    future_events.sort(key=lambda x: x["_dt"] if x["_dt"] else datetime.max)
+    
+    # 過去活動：由新到舊排序 (剛結束的在上面，很久以前的沉到最底)
+    past_events.sort(key=lambda x: x["_dt"], reverse=True)
+    
+    # 將未來與過去的活動合併成一個清單
+    sorted_events = future_events + past_events
+        
+    return render_template("calendar.html", events=sorted_events)
+# 8-2. 接收新增活動表單與密碼驗證
+@app.route("/calendar/add", methods=["POST"])
+def add_calendar_event():
+    # 🔐 設定你的管理員密碼
+    ADMIN_PASSWORD = "1234" 
+    
+    password = request.form.get("admin_password")
+    
+    # 檢查密碼是否正確
+    if password != ADMIN_PASSWORD:
+        return "❌ 密碼錯誤！無法新增活動。<br><br><a href='/calendar'>回行事曆</a>"
+    
+    # 密碼正確，取得表單資料
+    time_str = request.form.get("time")
+    title = request.form.get("title")
+    location = request.form.get("location")
+    description = request.form.get("description")
+    
+    payload = {
+        "action": "add_event",
+        "type": "event",
+        "time": time_str,
+        "title": title,
+        "location": location,
+        "description": description
+    }
+    
+    try:
+        # 寫入 Google 試算表
+        requests.post(GOOGLE_SCRIPT_URL, json=payload)
+    except Exception as e:
+        print(f"寫入行事曆失敗: {e}")
+        
+    return f"✅ 成功新增活動：{title}！<br><br><a href='/calendar'>回行事曆列表</a>"
+
+# 9. 物資共享路由
+# 9-1. 顯示物資共享與以物易物頁面
+@app.route("/sharing")
+def community_sharing():
+    # 從網址取得 LINE user_id，如果沒有就給個預設的訪客代號
+    user_id = request.args.get("user_id", "GUEST_USER")
+    
+    items = []
+    try:
+        # 讀取 Google 試算表的 sharing 分頁
+        response = requests.get(GOOGLE_SCRIPT_URL + "?sheet=sharing", timeout=20)
+        data = response.json()
+        
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict) and item.get("type") == "sharing_item":
+                    items.append({
+                        "provider_name": item.get("provider_name", ""),
+                        "item_name": item.get("item_name", ""),
+                        "want_item": item.get("want_item", ""),
+                        "contact": item.get("contact", ""),
+                        "user_id": item.get("user_id", ""),
+                        "status": item.get("status", "架上交換中") # 👈 順便確保有讀到狀態
+                    })
+        
+        # 👑 最關鍵的一步：直接用迴圈強制編號「真實行數」(從第 2 行開始)
+        for index, item in enumerate(items):
+            item["row_index"] = index + 2
+
+    except Exception as e:
+        print(f"讀取物資共享失敗: {e}")
+        
+    return render_template("sharing.html", items=items, user_id=user_id)
+# 9-2. 接收里民上架物資的表單
+@app.route("/sharing/add", methods=["POST"])
+def add_sharing_item():
+    user_id = request.form.get("user_id")
+    provider_name = request.form.get("provider_name")
+    item_name = request.form.get("item_name")
+    want_item = request.form.get("want_item")
+    contact = request.form.get("contact")
+    
+    payload = {
+        "action": "add_sharing",
+        "type": "sharing_item",
+        "user_id": user_id,
+        "provider_name": provider_name,
+        "item_name": item_name,
+        "want_item": want_item,
+        "contact": contact
+    }
+    
+    try:
+        # 將資料送給 Google Apps Script 寫入試算表
+        requests.post(GOOGLE_SCRIPT_URL, json=payload, timeout=15)
+    except Exception as e:
+        print(f"寫入物資失敗: {e}")
+        
+    return f"✅ 成功上架交換物資：{item_name}！<br><br><a href='/sharing?user_id={user_id}'>回物資共享列表</a>"
+
+# 9-3. 更新物資狀態的路由
+@app.route("/sharing/update_status", methods=["POST"])
+def update_sharing_status():
+    row_index = request.form.get("row_index")
+    new_status = request.form.get("new_status")
+    user_id = request.form.get("user_id")
+    
+    print(f"收到更新請求 -> 行數: {row_index}, 新狀態: {new_status}")
+    
+    # 確保 row_index 存在且可以轉成整數
+    try:
+        row_idx_int = int(row_index) if row_index else None
+    except ValueError:
+        row_idx_int = None
+
+    payload = {
+        "action": "update_sharing_status",
+        "row_index": row_idx_int,
+        "new_status": new_status
+    }
+    
+    try:
+        response = requests.post(GOOGLE_SCRIPT_URL, json=payload, timeout=15)
+        print(f"GAS 回應: {response.text}")
+    except Exception as e:
+        print(f"更新物資狀態失敗: {e}")
+        
+    return redirect(f"/sharing?user_id={user_id}")
 
 if __name__ == "__main__":
     app.run(debug=True)
