@@ -28,15 +28,17 @@
                             {% for item in records %}
                             <tr>
                                 <td class="fw-bold text-primary">{{ item.time }}</td>
-                                <td>{{ item.name }}</td>
+                                <td style="word-break: break-all;">{{ item.name }}</td>
                                 <td>{{ item.start }}</td>
                                 <td>{{ item.destination }}</td>
                                 <td>
                                     <span class="badge bg-warning text-dark">{{ item.status }}</span>
                                 </td>
                                 <td>
-                                    <!-- 智慧判斷：如果是司機發布的行程，顯示「我要搭車」；否則顯示「司機接單」 -->
-                                    {% if "【司機】" in item.name %}
+                                    <!-- 🛑 狀態防呆：如果已經被接單或安排了，就不顯示互動表單，避免重複接單 -->
+                                    {% if "已安排" in item.status %}
+                                        <span class="text-muted small">🔒 已完成指派</span>
+                                    {% elif "【司機】" in item.name %}
                                         <!-- 🙋‍♂️ 乘客登記搭乘表單 -->
                                         <form action="/carpool/join" method="POST" class="row g-1 align-items-center">
                                             <input type="hidden" name="name" value="{{ item.name }}">
