@@ -12,13 +12,13 @@ app = Flask(__name__)
 # Google Apps Script 雲端試算表網址
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2Or4mWl1AAXr1U5znLGmTIdk5KuCtItnkxo2r62-JmmeJEKpia-aGyhMoRIsiYdlR/exec"
 
-# ================= 🚀 LINE 機器人正式金鑰 =================
+# ===========================================================================================================
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get('LINE_CHANNEL_ACCESS_TOKEN', '你的預設測試Token')
 LINE_CHANNEL_SECRET = os.environ.get('LINE_CHANNEL_SECRET', '你的預設測試Secret')
 
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
-# ===================================================
+# ============================================================================================================
 
 @app.route("/")
 def home():
@@ -116,7 +116,6 @@ def handle_message(event):
 # =============================================================
 
 
-# 4. 預約紀錄與順風車頁面（加強防呆與時區對齊）
 # 4. 預約紀錄與順風車頁面
 @app.route("/carpool/records")
 def carpool_records():
@@ -203,7 +202,6 @@ def carpool_accept():
         print(f"接單更新失敗: {e}")
         
     return f"成功為 {name} 的行程接單！<br><br><a href='/carpool/records'>回預約紀錄列表</a>"
-
 
 # 7-2. 乘客登記搭乘順風車路由
 @app.route("/carpool/join", methods=["POST"])
@@ -349,8 +347,6 @@ def remove_location():
         return jsonify({"status": "success"})
     return jsonify({"status": "fail"}), 400
 
-
-
 # 8-1. 顯示行事曆頁面與讀取活動
 @app.route("/calendar")
 def community_calendar():
@@ -459,7 +455,6 @@ def add_calendar_event():
     return f"✅ 成功新增活動：{title}！<br><br><a href='/calendar'>回行事曆列表</a>"
 
 # 9. 物資共享路由
-# 9-1. 顯示物資共享與以物易物頁面
 @app.route("/sharing")
 def community_sharing():
     # 從網址取得 LINE user_id，如果沒有就給個預設的訪客代號

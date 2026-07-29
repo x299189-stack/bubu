@@ -33,11 +33,21 @@
         }).addTo(map);
 
         let markers = {};
+        let isCentered = false; // 💡 記錄是否已經自動置中過，避免一直把使用者畫面拉走
 
         function fetchLocations() {
             fetch('/carpool/api/locations')
                 .then(res => res.json())
                 .then(data => {
+                    let drivers = Object.keys(data);
+
+                    // 💡 如果抓到有車子在回報位置，且還沒置中過，就自動移至第一台車的位置
+                    if (drivers.length > 0 && !isCentered) {
+                        let firstDriver = data[drivers[0]];
+                        map.setView([firstDriver.lat, firstDriver.lng], 15);
+                        isCentered = true; 
+                    }
+
                     for (let driver in data) {
                         let info = data[driver];
                         let latLng = [info.lat, info.lng];
