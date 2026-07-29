@@ -314,11 +314,12 @@ def update_location():
     car_plate = data.get("car_plate", "未填車牌")
     
     if driver_name and lat and lng:
+        tw_time = datetime.now() + timedelta(hours=8)
         live_drivers_locations[driver_name] = {
             "lat": float(lat),
             "lng": float(lng),
             "car_plate": car_plate,
-            "time": datetime.now().strftime("%H:%M:%S")
+            "time": tw_time.strftime("%H:%M:%S")
         }
         return jsonify({"status": "success"})
     return jsonify({"status": "fail"}), 400
