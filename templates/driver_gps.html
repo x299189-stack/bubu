@@ -75,9 +75,18 @@
                     alert('您的瀏覽器不支援地理定位功能');
                 }
             } else {
+                // 🛑 停止回報時：清除 GPS 監聽
                 if (watchId !== null) {
                     navigator.geolocation.clearWatch(watchId);
                 }
+
+                // 💡 新增：向後端發送請求，將該司機從地圖上的點移除
+                fetch('/carpool/remove_location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ driver_name: driverName })
+                }).catch(err => console.error(err));
+
                 isTracking = false;
                 btn.innerText = "🚀 開始回報位置";
                 btn.classList.replace('btn-danger', 'btn-success');

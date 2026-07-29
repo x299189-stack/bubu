@@ -340,8 +340,18 @@ def live_map():
 def carpool_gps():
     return render_template("carpool_gps.html")
 
+@app.route("/carpool/remove_location", methods=["POST"])
+def remove_location():
+    data = request.json
+    driver_name = data.get("driver_name")
+    if driver_name in live_drivers_locations:
+        del live_drivers_locations[driver_name]
+        return jsonify({"status": "success"})
+    return jsonify({"status": "fail"}), 400
+
+
+
 # 8-1. 顯示行事曆頁面與讀取活動
-# 8-1. 顯示行事曆頁面與讀取活動 (已加入時間格式化與排序)
 @app.route("/calendar")
 def community_calendar():
     events = []
