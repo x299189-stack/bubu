@@ -91,14 +91,15 @@
                 </div>
             </div>
 
-            <!-- 📱 手機版專屬的卡片式清單（一目了然，絕不擠壓變形） -->
+            <!-- 📱 手機版專屬的卡片式清單（改為上下排列，解決擠壓問題） -->
             <div class="mobile-card-view">
                 {% for item in records %}
                 <div class="card shadow-sm mb-3 border-success">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold text-primary fs-5">⏰ {{ item.time }}</span>
-                            <span class="badge bg-warning text-dark fs-6">{{ item.status }}</span>
+                        <!-- 手機版改為區塊上下排列，避免擁擠 -->
+                        <div class="mb-2">
+                            <div class="fw-bold text-primary fs-5 mb-1">⏰ {{ item.time }}</div>
+                            <div><span class="badge bg-warning text-dark fs-6">{{ item.status }}</span></div>
                         </div>
                         <hr class="my-2">
                         <p class="mb-1"><strong>發布/乘車人：</strong> {{ item.name }}</p>
